@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
             MyComposeCalendarTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(color = MaterialTheme.colors.background) {
-                    Greeting("Android")
+                    Greeting()
                 }
             }
         }
@@ -25,14 +25,14 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String) {
-    Text(text = "Hello $name!")
+fun Greeting() {
+    Text(text = "Hello CI/CD!")
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
     MyComposeCalendarTheme {
-        Greeting("Android")
+        Greeting()
     }
 }
