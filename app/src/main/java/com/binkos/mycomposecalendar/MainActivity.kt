@@ -1,18 +1,13 @@
 package com.binkos.mycomposecalendar
 
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
+import android.text.format.DateFormat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -21,18 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.MeasurePolicy
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.binkos.mycomposecalendar.ui.theme.MyComposeCalendarTheme
-import com.google.accompanist.flowlayout.FlowRow
-import java.text.SimpleDateFormat
-import java.time.LocalDate
 import java.util.*
 
 class MainActivity : ComponentActivity() {
@@ -40,14 +28,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MyComposeCalendarTheme {
-                Calendar()
-
+                var calendar by remember { mutableStateOf(Calendar.getInstance()) }
+                var displayedCalendar by remember { mutableStateOf(Calendar.getInstance()) }
                 // A surface container using the 'background' color from the theme
                 Surface(color = MaterialTheme.colors.background) {
                     Column {
-                        CalendarHeader(dateState = mutableStateOf(Date()))
+                        CalendarHeader(
+                            dateState = displayedCalendar,
+                            {
+                                val updCal = calendar.previousMonth()
+                                calendar = updCal
+                                displayedCalendar = updCal
+                            },
+                            {
+                                val updCal = calendar.nextMonth()
+                                calendar = updCal
+                                displayedCalendar = updCal
+                            })
                         Spacer(modifier = Modifier.height(4.dp))
                         CalendarMonths()
+                        Spacer(modifier = Modifier.height(4.dp))
+                        DaysView(calendar) { displayedCalendar = calendarWithDate(it) }
                     }
                 }
             }
@@ -56,118 +57,160 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CalendarHeader(dateState: State<Date>) {
+fun CalendarHeader(
+    dateState: Calendar,
+    onPrevMonthClicked: (Calendar) -> Unit,
+    onNextMonthClicked: (Calendar) -> Unit
+) {
     Row(
         modifier = Modifier.height(36.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(painter = painterResource(id = R.drawable.ic_arrow), contentDescription = "arrow left")
+        Icon(
+            modifier = Modifier.clickable { onPrevMonthClicked(dateState) },
+            painter = painterResource(id = R.drawable.ic_arrow),
+            contentDescription = "arrow left"
+        )
         Spacer(modifier = Modifier.weight(1f))
-        Text(text = dateState.value.toString())
+        Text(text = DateFormat.format("yyyy-MM-d", dateState.time).toString())
         Spacer(modifier = Modifier.weight(1f))
         Icon(
-            modifier = Modifier.rotate(180f),
+            modifier = Modifier
+                .clickable { onNextMonthClicked(dateState) }
+                .rotate(180f),
             painter = painterResource(id = R.drawable.ic_arrow),
             contentDescription = "arrow right"
         )
     }
 }
 
-data class Month(
-    val id: Int,
-    val name: String,
-    val isSelected: Boolean
-)
-
-fun List<Month>.updateMonthById(id: Int) = map {
-    return@map when (it.id == id) {
-        true -> it.copy(isSelected = true)
-        false ->
-            if (it.isSelected) it.copy(isSelected = false)
-            else it
-    }
-}
-
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CalendarMonths() {
-    var months by remember {
-        mutableStateOf(
-            listOf(
-                Month(0, "Mon", false),
-                Month(1, "Tue", false),
-                Month(2, "Wed", false),
-                Month(3, "Thu", false),
-                Month(4, "Fri", false),
-                Month(5, "Sut", false),
-                Month(6, "Sun", false),
-            )
+    val months =
+        listOf(
+            Month(0, "Mon", false),
+            Month(1, "Tue", false),
+            Month(2, "Wed", false),
+            Month(3, "Thu", false),
+            Month(4, "Fri", false),
+            Month(5, "Sut", false),
+            Month(6, "Sun", false)
         )
-    }
 
-    val lambda: (Int) -> Unit = {
-        months.updateMonthById(it).also { updated -> months = updated }
-    }
     Row {
         val modifier = Modifier.weight(1f)
-        Month(modifier, months[0], lambda)
-        Month(modifier, months[1], lambda)
-        Month(modifier, months[2], lambda)
-        Month(modifier, months[3], lambda)
-        Month(modifier, months[4], lambda)
-        Month(modifier, months[5], lambda)
-        Month(modifier, months[6], lambda)
+        months.forEach { Month(modifier, it) }
     }
 }
 
 @Composable
-fun Month(
-    modifier: Modifier,
-    model: Month,
-    onClicked: (Int) -> Unit
-) {
+fun Month(modifier: Modifier, model: Month) {
     Text(
-        modifier = modifier.clickable { onClicked(model.id) },
+        modifier = modifier,
         text = model.name,
         textAlign = TextAlign.Center,
         textDecoration = if (model.isSelected) TextDecoration.Underline else null
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Calendar() {
-    val cal = Calendar.getInstance()
-    val nextCal = Calendar.getInstance().apply {
-        set(Calendar.DAY_OF_MONTH, 1)
-        set(Calendar.MONTH, cal[Calendar.MONTH] + 1)
-    }
-    val prevCal = Calendar.getInstance().apply {
-        set(Calendar.MONTH, cal[Calendar.MONTH] - 1)
-        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
-    }
-    val firstDay = cal.minimalDaysInFirstWeek
-    val lastDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+fun DaysView(
+    calendar: Calendar,
+    onItemClicked: (Date) -> Unit
+) {
+    val dates = remember(calendar) { calendar.getDates() }
 
-    val context = LocalContext.current
-
-    Toast.makeText(context, prevCal.time.toString(), Toast.LENGTH_SHORT).show()
-    Toast.makeText(context, cal.time.toString(), Toast.LENGTH_SHORT).show()
-    Toast.makeText(context, nextCal.minimalDaysInFirstWeek.toString(), Toast.LENGTH_SHORT).show()
-
-    SimpleDateFormat("EEEE")
-        .format(nextCal.time)
-        .also {
-            Log.d("Day", it)
+    LazyVerticalGrid(cells = GridCells.Fixed(7)) {
+        items(dates) {
+            Text(
+                modifier = Modifier.clickable { onItemClicked(it) },
+                text = DateFormat.format("d", it).toString(),
+                textAlign = TextAlign.Center
+            )
         }
-//    Toast.makeText(context, nextCal.getd, Toast.LENGTH_SHORT).show()
-
-    Log.d("PREV", prevCal.time.toString())
-    Log.d("CURRENT", cal.time.toString())
-    Log.d("NEXT", nextCal.time.toString())
+    }
 }
 
-@Composable
-fun LineDays(cal: Calendar) {
-    FlowRow() {
-
+private fun Calendar.nextMonth(): Calendar {
+    val newCalendar = Calendar.getInstance().apply {
+        time = this@nextMonth.time
     }
+    val currentMonth = get(Calendar.MONTH)
+    val currentYear = get(Calendar.YEAR)
+    val currentDay = get(Calendar.DAY_OF_MONTH)
+
+    val nextMonth = when (currentMonth == Calendar.DECEMBER) {
+        true -> {
+            newCalendar.set(Calendar.YEAR, currentYear + 1)
+            Calendar.JANUARY
+        }
+        false -> currentMonth + 1
+    }
+    newCalendar.set(Calendar.DAY_OF_MONTH, currentDay)
+    newCalendar.set(Calendar.MONTH, nextMonth)
+
+    return newCalendar
+}
+
+private fun Calendar.previousMonth(): Calendar {
+    val newCalendar = Calendar.getInstance().apply {
+        time = this@previousMonth.time
+    }
+    val currentMonth = get(Calendar.MONTH)
+    val currentYear = get(Calendar.YEAR)
+    val currentDay = get(Calendar.DAY_OF_MONTH)
+
+    val prevMonth = when (currentMonth == Calendar.JANUARY) {
+        true -> {
+            newCalendar.set(Calendar.YEAR, currentYear - 1)
+            Calendar.DECEMBER
+        }
+        false -> {
+            currentMonth - 1
+        }
+    }
+    newCalendar.set(Calendar.DAY_OF_MONTH, currentDay)
+    newCalendar.set(Calendar.MONTH, prevMonth)
+
+    return newCalendar
+}
+
+private fun calendarWithDate(date: Date): Calendar = Calendar.getInstance().apply { time = date }
+
+private fun Calendar.getDates(): List<Date> {
+    set(Calendar.DAY_OF_MONTH, 1)
+    val firstDayOfMonthInWeek = get(Calendar.DAY_OF_WEEK)
+    val dates = mutableListOf<Date>()
+
+    val allDays = getActualMaximum(Calendar.DAY_OF_MONTH)
+
+    if (firstDayOfMonthInWeek != Calendar.MONDAY) {
+        val prevMonth = previousMonth()
+        val prevMonthDays = prevMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val visibleDaysInCalendar = firstDayOfMonthInWeek - 2
+        val startVisibleDate = prevMonthDays - visibleDaysInCalendar
+        for (i in startVisibleDate + 1..prevMonthDays) {
+            prevMonth.set(Calendar.DAY_OF_MONTH, i)
+            dates.add(prevMonth.time)
+        }
+    }
+
+    for (i in 1..allDays) {
+        set(Calendar.DAY_OF_MONTH, i)
+        dates.add(time)
+    }
+
+    set(Calendar.DAY_OF_MONTH, allDays)
+    val newDayOfWeek = get(Calendar.DAY_OF_WEEK)
+    if (newDayOfWeek != Calendar.SUNDAY) {
+        val nextMonth = nextMonth()
+        for (i in 1..(7 - (newDayOfWeek - 1))) {
+            nextMonth.set(Calendar.DAY_OF_MONTH, i)
+            dates.add(nextMonth.time)
+        }
+    }
+
+    return dates
 }
